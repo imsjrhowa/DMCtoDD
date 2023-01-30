@@ -1,7 +1,13 @@
 import os
 import sys
 from PIL import Image
-from typing import List
+import argparse
+
+##
+#  
+# Note DMC 3346 Hunter Green has been mapped to DD 8266 Hunter Green.
+#
+##
 
 def read_input( fname, t=lambda x: x ):
     with open(os.path.join(sys.path[0], fname), "r") as f:
@@ -42,6 +48,13 @@ class dmc2dd:
         self.dd = int(dd)
         self.name = name
 
+parser = argparse.ArgumentParser(description='DMCtoDD takes a small pixel sprite image and outputs the Diamond Dotz color and amount needed to reporduce it.')
+parser.add_argument("input", help="Input pixel art file [file.png]")
+parser.add_argument("-o","--output", help="Output location for the pixel to DD color table [output.txt]")
+parser.add_argument("-showDMC", help="Show the DMC colors found in the given art file.", action="store_true")
+args = parser.parse_args()
+
+# Load conversion files.
 data = read_input("DMCrgb.csv")
 DMC = []
 for l in data:
@@ -54,6 +67,7 @@ for l in data2:
     dmc,dd,name = l.split(",")
     DMC2DD.append( dmc2dd(dmc,dd,name) )
 
+# Function to find the closest RGB color of a given RGB in the DMC color chart.
 def find( r,g,b ):
     closest_color = None
     closest_distance = float("inf")
@@ -63,17 +77,29 @@ def find( r,g,b ):
             closest_color = c
             closest_distance = distance
     return closest_color
-    
+
+# Convert DMC to DD    
 def DMC_to_DD(dmcID):
     for c in DMC2DD:
         if c.dmc == dmcID:
             return c.dd, c.name
     return None,None
 
-sizeW, sizeH, image_colors = getColorsFromImage("SnesSamus.png")
+# load image.
+sizeW, sizeH, image_colors = getColorsFromImage(args.input)
 
-print("DMC -> DD")
-print("Image Size ", sizeW, "x", sizeH)
+fptr = None
+if args.output or args.o:
+    fptr = open(args.output, "w")
+
+if fptr:
+    fptr.write("%s\n" %args.input)
+    fptr.write("DMC->DD\n")
+    fptr.write("Image Size %i x %i\n" %(sizeW, sizeH))
+else:
+    print("DMC -> DD")
+    print("Image Size ", sizeW, "x", sizeH)
+
 buyList = []
 totalGems = 0
 showDMC = False
@@ -82,10 +108,28 @@ for color in image_colors:
     best_color = find(color[0],color[1],color[2])
     if not best_color in buyList:
         buyList.append(best_color)
-        if showDMC:
-            print(best_color.id,best_color.name,end=" -> ")
+        if args.showDMC:
+            if fptr:
+                fptr.write("%s %s -> " %(best_color.id,best_color.name))                    
+            else:
+                print(best_color.id,best_color.name,end=" -> ")
         dd, ddName = DMC_to_DD( best_color.id )
-        print(dd,ddName,"x",count)
+            
+        if dd == None or ddName == None:
+            print("WARNING DMZ color [", best_color.id, best_color.name, "] was not Found and is used", count, "times.")
+        else:
+            if fptr:
+                fptr.write("%s %s x %i\n" %(dd,ddName,count))
+            else:
+                print(dd,ddName,"x",count)
+
     totalGems += count
-print("Total",totalGems)
-print("Done")
+if fptr:
+    fptr.write("Total %i\n" % (totalGems))
+else:
+    print("Total",totalGems)
+    print("Done")
+
+if fptr:
+    fptr.close()
+
