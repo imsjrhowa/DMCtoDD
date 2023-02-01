@@ -2,6 +2,7 @@ import os
 import sys
 from PIL import Image
 import argparse
+from pathlib import Path
 
 ##
 #  
@@ -10,9 +11,16 @@ import argparse
 ##
 
 def read_input( fname, t=lambda x: x ):
+    path = Path(os.path.join(sys.path[0], fname))
+    
+    if not path.is_file():
+        print("ERROR",fname,"is missing.")
+        return None
+
     with open(os.path.join(sys.path[0], fname), "r") as f:
         contents = f.read()
         lines = contents.strip().split('\n')
+
     return list(map(t, lines))
 
 def getColorsFromImage(fileName):
@@ -56,12 +64,17 @@ args = parser.parse_args()
 
 # Load conversion files.
 data = read_input("DMCrgb.csv")
+if data == None:
+    exit(0)
+
 DMC = []
 for l in data:
     id,name,r,g,b,hex = l.split(",")
     DMC.append( dmcColor(id,name,r,g,b,hex) )
 
 data2 = read_input("DMCtoDD.csv")
+if data == None:
+    exit(0)
 DMC2DD = []
 for l in data2:
     dmc,dd,name = l.split(",")
